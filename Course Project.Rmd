@@ -1,0 +1,88 @@
+---
+title: "Course Project"
+author: "Michel Bouchou"
+date: "6 juillet 2017"
+output: html_document
+---
+##Intro
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+##Load packages
+
+```{r, message=FALSE}
+library(caret)
+library(tidyverse)
+```
+
+##Data preprocessing
+
+```{r}
+train <- read.csv("pml-training.csv")
+test <- read.csv("pml-testing.csv")
+```
+
+I load data from my directory and save it in train and test variables.
+
+##Clean data
+
+I we take a quick look in the data, we can see that some variable contains many NA values in test and train data sets. So I decided to remove those columns. Furthermore, I used the function nearZeroVar to remove some useless variables.
+
+```{r}
+x <- apply(train, 2, anyNA)
+y <- apply(test[, !x], 2, anyNA)
+train <- train[, !x]
+train <- train[, !y]
+
+nzv <- nearZeroVar(train)
+train <- train[, -nzv]
+```
+
+##Exploratory data analysis
+
+
+```{r}
+dim(train)
+table(train$user_name, train$classe)
+```
+Now, we have a smaller data set ready for modeling.
+
+##Model
+
+First of all, I create two new datasets, training and testing.
+
+```{r}
+set.seed(1)
+inTrain <- createDataPartition(train$classe, p = 0.8)[[1]]
+training <- train[inTrain, ]
+testing <- train[-inTrain, ]
+```
+
+I tested around 15 differents algorithms and the Bagged CART is the only one I selected. It has a high accuracy and creates 0 NA values while predicting. I didn't use some varable which was based on index and wouldn't help me to predict correct variables.
+
+```{r, message = FALSE}
+model <- train(classe ~ . - X - raw_timestamp_part_1 - cvtd_timestamp, 
+               data = training, method = "treebag")
+```
+
+Let's see useful information about the algorithm.
+
+```{r}
+confMatrix <- confusionMatrix(predict(model, testing), testing$classe)
+confMatrix$table
+confMatrix$overall[1]
+```
+
+Final step, predict values for the final test set.
+
+```{r}
+final <- data.frame(test$X, predict(model, test))
+
+final
+```
+
+With these predictions, i did 20/20 on the quiz.
+
+Thanks !
+
+
